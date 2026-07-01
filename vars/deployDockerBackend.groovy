@@ -9,7 +9,7 @@ def call(String agentName, String imageName, String environment, String imageTag
             stage('Checkout') {
 
                 // Load repository/configuration
-                loadConfig(
+                loadApiConfig(
                     imageName,
                     environment,
                     branch,
