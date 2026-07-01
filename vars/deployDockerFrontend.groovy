@@ -1,14 +1,6 @@
 #!/usr/bin/env groovy
 
-def call(String agentName,
-         String imageName,
-         String environment,
-         String imageTag,
-         String branch,
-         String repoUrl,
-         String credentialsId,
-         String envVarRepo,
-         String teamsWebhookUrl) {
+def call(String agentName, String imageName, String environment, String imageTag, String branch, String repoUrl, String credentialsId, String envVarRepo, String teamsWebhookUrl) {
 
     node(agentName) {
 
