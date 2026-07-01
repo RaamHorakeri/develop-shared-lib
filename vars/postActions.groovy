@@ -161,7 +161,7 @@ def call(String branch,
     }
   ]
 }
-
+"""
                     writeFile(
                         file: "teams-payload.json",
                         text: payload
