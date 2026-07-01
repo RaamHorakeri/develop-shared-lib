@@ -1,6 +1,14 @@
 #!/usr/bin/env groovy
 
-def call(String agentName, String imageName, String environment, String imageTag, String branch, String repoUrl, String credentialsId, String envVarRepo, String teamsWebhookUrl) {
+def call(String agentName,
+         String imageName,
+         String environment,
+         String imageTag,
+         String branch,
+         String repoUrl,
+         String credentialsId,
+         String envVarRepo,
+         String teamsWebhookUrl) {
 
     node(agentName) {
 
@@ -8,51 +16,34 @@ def call(String agentName, String imageName, String environment, String imageTag
 
             stage('Checkout') {
 
-                echo "📦 Checking out repository: ${repoUrl}, Branch: ${branch}"
-                echo "⚙️ Loading environment configuration for: ${envVarRepo}"
+                // Load repository/configuration
+                loadConfig(
+                    imageName,
+                    environment,
+                    branch,
+                    repoUrl,
+                    credentialsId,
+                    envVarRepo
+                )
 
-                def configData    = loadConfig(imageName, environment, branch, repoUrl, credentialsId, envVarRepo)
-                def serviceConfig = configData.services[imageName]?.environments[environment]
-
-                if (!serviceConfig) {
-                    error("❌ No configuration found for image: '${imageName}' and environment: '${environment}' in ${envVarRepo}")
-                }
-
-                repoUrl       = serviceConfig.repoUrl ?: repoUrl
-                credentialsId = serviceConfig.credentialsId ?: credentialsId
-                def envVars   = serviceConfig.envVars ?: [:]
-
-                echo """
-                ✅ Loaded Config:
-                   🔹 repoUrl:       ${repoUrl}
-                   🔹 credentialsId: ${credentialsId}
-                   🔹 envVarRepo:    ${envVarRepo}
-                   🔹 envVars:       ${envVars.keySet().join(', ') ?: 'None'}
-                    """
-
-                envVars.each { key, jenkinsCredId ->
-                    withCredentials([string(credentialsId: jenkinsCredId, variable: key)]) {
-                        env."${key}" = "${env[key]}"
-                        echo "🔐 Loaded secret: ${key} from credentialsId: ${jenkinsCredId}"
-                    }
-                }
-
+                // Checkout source code
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: "*/${branch}"]],
                     userRemoteConfigs: [[
-                        url: repoUrl,
-                        credentialsId: credentialsId
+                        url: env.REPO_URL,
+                        credentialsId: env.CREDENTIALS_ID
                     ]]
                 ])
 
+                // Load Git commit information
                 initializeBuild()
 
+                // Deployment variables
                 env.IMAGE_NAME  = imageName
                 env.IMAGE_TAG   = imageTag
                 env.ENVIRONMENT = environment
                 env.BRANCH      = branch
-                env.REPO_URL    = repoUrl
             }
 
             stage('Build Docker Image') {
@@ -106,7 +97,9 @@ def call(String agentName, String imageName, String environment, String imageTag
 
                 echo "🧹 Cleaning up unused Docker images..."
 
-                sh "docker image prune -af || true"
+                sh """
+                docker image prune -af || true
+                """
             }
 
         } catch (err) {
@@ -119,7 +112,7 @@ def call(String agentName, String imageName, String environment, String imageTag
 
             postActions(
                 branch,
-                repoUrl,
+                env.REPO_URL,
                 environment,
                 teamsWebhookUrl
             )
